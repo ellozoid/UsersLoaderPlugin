@@ -8,6 +8,7 @@ using PhoneApp.Domain.Attributes;
 using PhoneApp.Domain.DTO;
 using PhoneApp.Domain.Interfaces;
 using UsersLoaderPlugin.DTO;
+using System.Net;
 
 namespace UsersLoaderPlugin
 {
@@ -22,9 +23,10 @@ namespace UsersLoaderPlugin
             var result = args?.Cast<EmployeesDTO>().ToList() ?? new List<EmployeesDTO>();
             try
             {
+                ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
+
                 string baseUrl = ConfigurationManager.AppSettings["UsersApiUrl"] ?? "https://dummyjson.com/users";
-                int limit = 10;
-                int.TryParse(ConfigurationManager.AppSettings["UsersLimit"], out limit);
+                int limit = GetIntOrDefault(ConfigurationManager.AppSettings["UsersLimit"], 10);
 
                 var fetchedUsers = new List<EmployeesDTO>();
                 using (var client = new HttpClient())
@@ -62,6 +64,7 @@ namespace UsersLoaderPlugin
                     }
                 }
                 result.AddRange(fetchedUsers);
+                logger.Info($"Loaded {fetchedUsers.Count} users");
             }
             catch (Exception ex)
             {
@@ -70,7 +73,6 @@ namespace UsersLoaderPlugin
                 return result.Cast<DataTransferObject>();
             }
 
-            logger.Info($"Loaded {result.Count} users");
             return result.Cast<DataTransferObject>();
         }
 
@@ -79,6 +81,11 @@ namespace UsersLoaderPlugin
             var dto = new EmployeesDTO { Name = $"{user.FirstName} {user.LastName}" };
             dto.AddPhone(user.Phone);
             return dto;
+        }
+
+        private static int GetIntOrDefault(string input, int defaultValue)
+        {
+            return int.TryParse(input, out var result) && result > 0 ? result : defaultValue;
         }
     }
 }
